@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/mfa_database
+    username: mfa_user
+    password: 1221
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      #ddl-auto: update # Această setare este magică: va crea automat tabelul "users" în Postgres!
+      ddl-auto: create-drop # Creează tabelele la pornire și le șterge la oprire (util pentru dezvoltare)
+    show-sql: true

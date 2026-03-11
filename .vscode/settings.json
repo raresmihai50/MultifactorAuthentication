@@ -1,0 +1,16 @@
+{
+    "sqltools.connections": [
+        {
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5433,
+            "driver": "PostgreSQL",
+            "name": "MFAPG",
+            "password": "1221",
+            "username": "mfa_user",
+            "database": "mfa_database"
+        }
+    ],
+    "java.configuration.updateBuildConfiguration": "interactive"
+}
