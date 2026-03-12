@@ -34,7 +34,7 @@ public class UserService {
     }
 
     // --- 1. ÎNREGISTRAREA ---
-    public User registerUser(String username, String email, String rawPassword) {
+    public User registerUser(String username, String email, String rawPassword, List<String> selectedMfas) {
         if (userRepository.findByUsername(username).isPresent()) {
             throw new RuntimeException("Eroare: Acest username este deja folosit!");
         }
@@ -42,14 +42,25 @@ public class UserService {
             throw new RuntimeException("Eroare: Acest email este deja folosit!");
         }
 
-        // Criptăm parola înainte să o salvăm! (Magia BCrypt)
+        // Criptăm parola
         String encodedPassword = passwordEncoder.encode(rawPassword);
 
-        // Creăm userul folosind parola criptată, NU textul clar
+        // Creăm userul
         User newUser = new User(username, email, encodedPassword);
+        User savedUser = userRepository.save(newUser);
+        
+        // Dacă a bifat metode MFA în React, le salvăm în baza de date
+        if (selectedMfas != null && !selectedMfas.isEmpty()) {
+            for (String mfaName : selectedMfas) {
+                // Le setăm inițial cu isEnabled = false, secretKey = null
+                UserMfaMethod method = new UserMfaMethod(savedUser, mfaName, null);
+                method.setEnabled(false); // Vor deveni true doar după ce le configurează!
+                mfaMethodRepository.save(method);
+            }
+        }
 
-        System.out.println("User înregistrat cu succes: " + username);
-        return userRepository.save(newUser);
+        System.out.println("User înregistrat cu succes: " + username + " cu metodele: " + selectedMfas);
+        return savedUser;
     }
 
     // --- 2. LOGIN PASUL 1 (Verificarea Parolei și a Metodelor MFA) ---
