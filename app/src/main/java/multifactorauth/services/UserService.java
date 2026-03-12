@@ -1,17 +1,23 @@
 package multifactorauth.services;
 
-import multifactorauth.domain.User;
-import multifactorauth.repo.UserMfaMethodRepository;
-import multifactorauth.repo.UserRepository;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import multifactorauth.domain.User;
+import multifactorauth.domain.UserMfaMethod;
+import multifactorauth.dto.LoginResponse;
+import multifactorauth.repo.UserMfaMethodRepository;
+import multifactorauth.repo.UserRepository;
 
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
     private final UserMfaMethodRepository mfaMethodRepository;
+    private final PasswordEncoder passwordEncoder;
     
     // Aici e magia Strategy Pattern: Spring ne va injecta automat TOATE clasele 
     // care implementează MfaProvider (și TotpMfaProvider, și EmailMfaProvider)
@@ -19,55 +25,63 @@ public class UserService {
 
     public UserService(UserRepository userRepository, 
                        UserMfaMethodRepository mfaMethodRepository, 
-                       List<MfaProvider> mfaProviders) {
+                       List<MfaProvider> mfaProviders,
+                       PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.mfaMethodRepository = mfaMethodRepository;
         this.mfaProviders = mfaProviders;
+        this.passwordEncoder = passwordEncoder;
     }
-
-    // // --- 1. ÎNREGISTRAREA ---
-    // public User registerUser(String username, String email, String rawPassword) {
-    //     // TODO: Verifică dacă username-ul sau email-ul există deja în DB
-    //     // TODO: Hash-uiește parola 'rawPassword' (niciodată nu o salvăm în clar!)
-    //     // TODO: Salvează și returnează noul User în baza de date
-    //     return null; 
-    // }
 
     // --- 1. ÎNREGISTRAREA ---
     public User registerUser(String username, String email, String rawPassword) {
-    // 1. Verificăm dacă username-ul există deja
-    if (userRepository.findByUsername(username).isPresent()) {
-        throw new RuntimeException("Eroare: Acest username este deja folosit!");
+        if (userRepository.findByUsername(username).isPresent()) {
+            throw new RuntimeException("Eroare: Acest username este deja folosit!");
+        }
+        if (userRepository.findByEmail(email).isPresent()) {
+            throw new RuntimeException("Eroare: Acest email este deja folosit!");
+        }
+
+        // Criptăm parola înainte să o salvăm! (Magia BCrypt)
+        String encodedPassword = passwordEncoder.encode(rawPassword);
+
+        // Creăm userul folosind parola criptată, NU textul clar
+        User newUser = new User(username, email, encodedPassword);
+
+        System.out.println("User înregistrat cu succes: " + username);
+        return userRepository.save(newUser);
     }
 
-    // 2. Verificăm dacă email-ul există deja
-    if (userRepository.findByEmail(email).isPresent()) {
-        throw new RuntimeException("Eroare: Acest email este deja folosit!");
+    // --- 2. LOGIN PASUL 1 (Verificarea Parolei și a Metodelor MFA) ---
+    public LoginResponse loginStep1(String email, String rawPassword) { // Returnăm LoginResponse, nu Object
+        
+        // 1. Căutăm userul în baza de date
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Eroare: Nu există niciun cont cu acest email!"));
+
+        // 2. Comparăm parola introdusă cu HASH-ul
+        if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
+            throw new RuntimeException("Eroare: Parolă incorectă!");
+        }
+
+        // 3. Căutăm ce metode MFA are activate
+        List<UserMfaMethod> activeMethods = mfaMethodRepository.findByUserAndIsEnabledTrue(user);
+
+        List<String> availableMfaMethods = activeMethods.stream()
+                .map(UserMfaMethod::getProviderName)
+                .collect(Collectors.toList());
+
+        // 4. Returnăm un răspuns CLAR și TIPIZAT
+        if (availableMfaMethods.isEmpty()) {
+            System.out.println("-> Login Step 1: Userul nu are MFA. Intră direct în cont!");
+            // mfaRequired = false, methods = null, message = "LOGIN_SUCCESS"
+            return new LoginResponse(false, null, "LOGIN_SUCCESS"); 
+        } else {
+            System.out.println("-> Login Step 1: Parolă corectă! Se cer metodele MFA: " + availableMfaMethods);
+            // mfaRequired = true, methods = lista noastră, message = "MFA_REQUIRED"
+            return new LoginResponse(true, availableMfaMethods, "MFA_REQUIRED"); 
+        }
     }
-
-    // 3. Transformăm parola în Hash (Securitate maximă)
-    // BCrypt generează automat un "salt" și îl include în hash
-    //String encodedPassword = passwordEncoder.encode(rawPassword);
-
-    // 4. Creăm obiectul User
-    User newUser = new User(username, email, rawPassword);
-
-    // 5. Salvare în baza de date
-    User savedUser = userRepository.save(newUser);
-    
-    System.out.println("User înregistrat cu succes: " + username);
-    return savedUser;
-}
-
-    // --- 2. LOGIN PASUL 1 (Parola) ---
-    public Object loginStep1(String username, String rawPassword) {
-        // TODO: Găsește userul după username
-        // TODO: Verifică dacă parola introdusă se potrivește cu hash-ul din DB
-        // TODO: Caută în 'mfaMethodRepository' ce metode are activate acest user
-        // TODO: Returnează către Frontend un răspuns (ex: "MFA_REQUIRED" și lista ["TOTP", "EMAIL"])
-        return null;
-    }
-
     // --- 3. CONFIGURARE MFA (Userul vrea să activeze o metodă nouă din setări) ---
     public Object setupMfaMethod(Long userId, String providerName) {
         // TODO: Găsește userul
