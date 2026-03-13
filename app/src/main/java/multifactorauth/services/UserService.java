@@ -1,6 +1,7 @@
 package multifactorauth.services;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -93,29 +94,96 @@ public class UserService {
             return new LoginResponse(true, availableMfaMethods, "MFA_REQUIRED"); 
         }
     }
-    // --- 3. CONFIGURARE MFA (Userul vrea să activeze o metodă nouă din setări) ---
-    public Object setupMfaMethod(Long userId, String providerName) {
-        // TODO: Găsește userul
-        // TODO: Găsește provider-ul corect din lista 'mfaProviders' (ex: cel care are getProviderName() == "TOTP")
-        // TODO: Generează un 'secretKey' și creează un rând nou în tabela 'user_mfa_methods' (cu is_enabled = false)
-        // TODO: Dacă e TOTP, generează un QR Code URL și trimite-l la Frontend ca userul să-l scaneze
+    // --- 3. CONFIGURARE MFA (Trimiterea codului inițial) ---
+    public Object setupMfaMethod(String email, String providerName) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User nu a fost găsit!"));
+
+        // Verificăm dacă metoda MFA există deja pentru el în DB. Dacă nu, o creăm!
+        Optional<UserMfaMethod> existingMethod = mfaMethodRepository.findByUserAndProviderName(user, providerName);
+        if (existingMethod.isEmpty()) {
+            UserMfaMethod newMethod = new UserMfaMethod(user, providerName, null);
+            newMethod.setEnabled(false); // Încă nu e validată!
+            mfaMethodRepository.save(newMethod);
+        }
+
+        // Căutăm providerul (ex: EmailMfaProvider)
+        MfaProvider provider = mfaProviders.stream()
+                .filter(p -> p.getProviderName().equals(providerName))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Providerul " + providerName + " nu există!"));
+
+        // Trimitem email-ul cu codul
+        if (providerName.equals("EMAIL")) {
+            provider.sendChallenge(user);
+            return "Codul a fost trimis pe email-ul tău. Te rugăm să-l introduci pentru confirmare!";
+        }
+        
         return null;
     }
 
-    // --- 4. CONFIRMARE MFA (Userul bagă primul cod ca să valideze configurarea) ---
-    public boolean confirmMfaSetup(Long userId, String providerName, String code) {
-        // TODO: Caută metoda MFA în DB care are 'is_enabled = false'
-        // TODO: Apelează 'verifyCode' din provider-ul corect
-        // TODO: Dacă e corect codul, setează 'is_enabled = true' în DB și salvează. Metoda e acum activă!
-        return false;
+    // --- 4. CONFIRMARE MFA (Validarea codului și activarea metodei) ---
+    public boolean confirmMfaSetup(String email, String providerName, String code) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User nu a fost găsit!"));
+
+        MfaProvider provider = mfaProviders.stream()
+                .filter(p -> p.getProviderName().equals(providerName))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Providerul " + providerName + " nu există!"));
+
+        // Apelează 'verifyCode' din EmailMfaProvider
+        if (provider.verifyCode(user, code)) {
+            // Dacă codul e bun, căutăm metoda în DB și îi punem is_enabled = true
+            UserMfaMethod method = mfaMethodRepository.findByUserAndProviderName(user, providerName)
+                    .orElseThrow(() -> new RuntimeException("Metoda nu există pentru acest user!"));
+            
+            method.setEnabled(true); // <--- AICI SE FACE MAGIA
+            mfaMethodRepository.save(method);
+            System.out.println("Metoda " + providerName + " a fost ACTIVATĂ cu succes pentru " + email);
+            return true;
+        }
+
+        throw new RuntimeException("Codul introdus este incorect!");
     }
 
-    // --- 5. LOGIN PASUL 2 (Verificarea codului propriu-zis) ---
-    public String loginStep2(Long userId, String providerName, String code) {
-        // TODO: Verifică dacă metoda aleasă de user este activă (is_enabled = true)
-        // TODO: Apelează 'verifyCode' din provider-ul specific
-        // TODO: Dacă codul e corect, generează un token JWT (Json Web Token) pentru ca React-ul să aibă acces la platformă
-        // TODO: Returnează token-ul JWT
-        return null;
+    /// --- Trimite codul atunci când userul încearcă să se logheze ---
+    public void sendLoginChallenge(String email, String providerName) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User nu a fost găsit!"));
+
+        MfaProvider provider = mfaProviders.stream()
+                .filter(p -> p.getProviderName().equals(providerName))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Providerul " + providerName + " nu există!"));
+
+        provider.sendChallenge(user);
+    }
+
+    // --- 5. LOGIN PASUL 2 (Verificarea codului propriu-zis la logare) ---
+    public String loginStep2(String email, String providerName, String code) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User nu a fost găsit!"));
+
+        // Verificăm dacă metoda este activă pe bune (is_enabled = true)
+        UserMfaMethod method = mfaMethodRepository.findByUserAndProviderName(user, providerName)
+                .orElseThrow(() -> new RuntimeException("Metoda MFA nu există pentru acest user!"));
+        
+        if (!method.isEnabled()) {
+            throw new RuntimeException("Metoda MFA nu este activată!");
+        }
+
+        MfaProvider provider = mfaProviders.stream()
+                .filter(p -> p.getProviderName().equals(providerName))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Providerul " + providerName + " nu există!"));
+
+        // Verificăm codul
+        if (provider.verifyCode(user, code)) {
+            // Aici în viitor am returna un token JWT. Acum dăm doar un mesaj de succes.
+            return "LOGIN_SUCCESS_MFA";
+        } else {
+            throw new RuntimeException("Cod invalid!");
+        }
     }
 }
