@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import multifactorauth.dto.LoginRequest;
+import multifactorauth.dto.LoginResponse;
 import multifactorauth.dto.RegisterRequest;
 import multifactorauth.services.UserService;
 
@@ -41,4 +43,17 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+        try {
+            // Metoda care verifică parola cu BCrypt
+            LoginResponse response = userService.loginStep1(request.getEmail(), request.getPassword());
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            // Parolă greșită sau email inexistent
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    } 
+
 }

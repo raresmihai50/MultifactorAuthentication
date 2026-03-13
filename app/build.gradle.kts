@@ -18,9 +18,12 @@ repositories {
 }
 
 dependencies {
+    // Librăria pentru trimis email-uri
+    implementation("org.springframework.boot:spring-boot-starter-mail")
+
     //implementation ("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-security")
-    
+
     implementation("dev.samstevens.totp:totp:1.7.1")
 
     // 1. Ne permite să creăm API-uri (partea de Web)
