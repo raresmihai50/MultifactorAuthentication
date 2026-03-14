@@ -48,7 +48,7 @@ public class TotpMfaProvider implements MfaProvider {
         QrData data = new QrData.Builder()
                 .label(user.getEmail()) // Va apărea în aplicația de pe telefon
                 .secret(secret)
-                .issuer("Aplicația Mea de Securitate") // Numele aplicației tale
+                .issuer("MFA Project") // Numele aplicației tale
                 .algorithm(HashingAlgorithm.SHA1) // Standardul Google Auth
                 .digits(6)
                 .period(30)

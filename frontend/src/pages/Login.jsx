@@ -22,7 +22,7 @@ function Login() {
     e.preventDefault();
     setError('');
     setMessage('');
-    setMfaError(''); // Curățăm orice eroare veche din pop-up
+    setMfaError(''); 
 
     try {
       const response = await axios.post('/api/auth/login', {
@@ -31,6 +31,7 @@ function Login() {
       });
 
       if (response.data.mfaRequired) {
+        // Dacă are EMAIL, trimitem codul
         if (response.data.availableMfaMethods.includes('EMAIL')) {
           setActiveProvider('EMAIL');
           setMessage('Parolă corectă! Se trimite codul pe email...');
@@ -39,8 +40,12 @@ function Login() {
           
           setMessage(''); 
           setShowMfaPopup(true); 
-        } else {
-          alert("Alte metode MFA nu sunt încă suportate în Frontend!");
+        } 
+        // NOU: Dacă are TOTP, îi deschidem direct Pop-up-ul, fără să mai sunăm la /challenge
+        else if (response.data.availableMfaMethods.includes('TOTP')) {
+          setActiveProvider('TOTP');
+          setMessage(''); // Nu trebuie să așteptăm niciun email
+          setShowMfaPopup(true);
         }
       } else {
         localStorage.setItem('userEmail', email);

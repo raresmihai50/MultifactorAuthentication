@@ -9,31 +9,29 @@ function Dashboard() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   
-  // NOU: Stări pentru Editare Profil
   const [isEditing, setIsEditing] = useState(false);
   const [username, setUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
 
-  // Stări pentru Popup-ul de validare MFA
   const [showPopup, setShowPopup] = useState(false);
   const [mfaCode, setMfaCode] = useState('');
   const [activeProvider, setActiveProvider] = useState('');
+  
+  // NOU: Am adăugat starea pentru a salva imaginea QR de la Backend
+  const [qrCodeImage, setQrCodeImage] = useState('');
 
-  // Dacă nu ești logat, te dă afară la login
   useEffect(() => {
     if (!loggedInEmail) {
       navigate('/login');
       return;
     }
     
-    // Luăm username-ul din backend ca să îl precompletăm în formular
     axios.get(`/api/auth/me?email=${loggedInEmail}`)
       .then(res => setUsername(res.data.username))
       .catch(err => console.log(err));
       
   }, [loggedInEmail, navigate]);
 
-  // --- Funcția de Update Profil ---
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     setError('');
@@ -41,13 +39,13 @@ function Dashboard() {
     
     try {
       const response = await axios.post('/api/auth/update', {
-        email: loggedInEmail, // Email-ul rămâne același
+        email: loggedInEmail,
         newUsername: username,
         newPassword: newPassword
       });
       setMessage(response.data.message);
-      setIsEditing(false); // Închidem formularul
-      setNewPassword(''); // Ștergem parola tastată ca să nu rămână pe ecran
+      setIsEditing(false);
+      setNewPassword('');
     } catch (err) {
       setError(err.response?.data?.error || 'Eroare la actualizare profil.');
     }
@@ -56,22 +54,17 @@ function Dashboard() {
   const handleSetupMfa = async (providerName) => {
     setError('');
     setMessage('Se procesează... Te rugăm să aștepți.');
-    
-    // NOU: Asigură-te că ai și o stare pentru setQrCodeImage sus în componentă dacă nu o ai deja
-    // const [qrCodeImage, setQrCodeImage] = useState(''); 
-    if (typeof setQrCodeImage === 'function') setQrCodeImage(''); 
+    setQrCodeImage(''); // Curățăm imaginea la fiecare cerere nouă
 
     try {
       const response = await axios.post(`/api/auth/mfa/setup?email=${loggedInEmail}&provider=${providerName}`);
-      
-      // Aici e secretul: response.data.message este ACUM obiectul nostru DTO!
       const challengeData = response.data.message; 
 
       if (challengeData.type === 'QR') {
-        if (typeof setQrCodeImage === 'function') setQrCodeImage(challengeData.qrCodeData); // Salvăm imaginea
-        setMessage(challengeData.message); // Salvăm DOAR textul ("Scanează codul...")
+        setQrCodeImage(challengeData.qrCodeData); // Salvăm imaginea generată de server
+        setMessage(challengeData.message); 
       } else {
-        setMessage(challengeData.message); // Salvăm DOAR textul ("Codul a fost trimis...")
+        setMessage(challengeData.message); 
       }
 
       setActiveProvider(providerName);
@@ -89,6 +82,7 @@ function Dashboard() {
       setMessage(response.data.message);
       setShowPopup(false);
       setMfaCode('');
+      setQrCodeImage(''); // Curățăm imaginea după succes
     } catch (err) {
       setError(err.response?.data?.error || 'Codul introdus este invalid!');
     }
@@ -109,7 +103,6 @@ function Dashboard() {
       {message && <div style={{ color: 'green', textAlign: 'center', marginBottom: '15px', fontWeight: 'bold' }}>{message}</div>}
       {error && <div style={{ color: 'red', textAlign: 'center', marginBottom: '15px', fontWeight: 'bold' }}>{error}</div>}
 
-      {/* Dacă suntem în modul EDITARE afișăm formularul, dacă nu, afișăm meniul normal */}
       {isEditing ? (
         <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div className="form-group">
@@ -147,13 +140,21 @@ function Dashboard() {
             ✉️ Configurează MFA prin Email
           </button>
 
+          {/* Butonul pentru TOTP care apelează corect funcția */}
+          <button 
+            onClick={() => handleSetupMfa('TOTP')} 
+            className="btn-secondary" 
+            style={{ backgroundColor: '#eef5ff', borderColor: '#007bff', color: '#007bff', marginTop: '10px' }}>
+            📱 Configurează Google Authenticator
+          </button>
+
           <button onClick={handleLogout} className="btn-primary" style={{ backgroundColor: '#dc3545', marginTop: '20px' }}>
             🚪 Deconectare
           </button>
         </div>
       )}
 
-      {/* POP-UP PENTRU INTRODUCEREA CODULUI MFA (A rămas la fel) */}
+      {/* POP-UP PENTRU INTRODUCEREA CODULUI MFA */}
       {showPopup && (
         <div style={{
           position: 'absolute', top: '10%', left: '5%', right: '5%', 
@@ -161,9 +162,25 @@ function Dashboard() {
           boxShadow: '0 5px 25px rgba(0,0,0,0.5)', zIndex: 10, border: '2px solid #007bff'
         }}>
           <h3 style={{ marginTop: 0, color: '#007bff' }}>Verificare Cod</h3>
+          
+          {/* NOU: Textul se schimbă în funcție de metoda aleasă */}
           <p style={{ fontSize: '0.9rem', color: '#555' }}>
-            Am trimis un cod de 6 cifre la <b>{loggedInEmail}</b>. Te rugăm să-l introduci mai jos:
+            {activeProvider === 'EMAIL' 
+              ? <>Am trimis un cod de 6 cifre la <b>{loggedInEmail}</b>. Te rugăm să-l introduci mai jos:</>
+              : <>Scanează codul de mai jos în <b>Google Authenticator</b> și introdu codul generat:</>
+            }
           </p>
+          
+          {/* NOU: Aici este magia unde afișăm imaginea cu Codul QR dacă există! */}
+          {qrCodeImage && (
+            <div style={{ textAlign: 'center', margin: '15px 0' }}>
+              <img 
+                src={qrCodeImage} 
+                alt="QR Code" 
+                style={{ width: '200px', border: '1px solid #ddd', borderRadius: '10px' }} 
+              />
+            </div>
+          )}
           
           <input 
             type="text" value={mfaCode} onChange={(e) => setMfaCode(e.target.value)} 
