@@ -1,14 +1,13 @@
 package multifactorauth.services;
 
 import multifactorauth.domain.User;
+import multifactorauth.dto.MfaChallengeResponse; // Nu uita importul!
 
 public interface MfaProvider {
-    // Returnează numele ("TOTP", "EMAIL")
-    String getProviderName(); 
+    String getProviderName();
     
-    // Trimite provocarea (ex: trimite mail-ul cu codul)
-    void sendChallenge(User user); 
+    // Acum returnăm un obiect clar și predictibil!
+    MfaChallengeResponse generateChallenge(User user); 
     
-    // Validează codul introdus de user
-    boolean verifyCode(User user, String code); 
+    boolean verifyCode(User user, String code);
 }

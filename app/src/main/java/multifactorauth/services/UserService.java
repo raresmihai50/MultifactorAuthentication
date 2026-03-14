@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import multifactorauth.domain.User;
 import multifactorauth.domain.UserMfaMethod;
 import multifactorauth.dto.LoginResponse;
+import multifactorauth.dto.MfaChallengeResponse;
 import multifactorauth.repo.UserMfaMethodRepository;
 import multifactorauth.repo.UserRepository;
 
@@ -124,7 +125,8 @@ public class UserService {
     }
 
     // --- 3. CONFIGURARE MFA (Trimiterea codului inițial) ---
-    public Object setupMfaMethod(String email, String providerName) {
+    // --- 3. CONFIGURARE MFA (Trimiterea/Generarea codului inițial) ---
+    public MfaChallengeResponse setupMfaMethod(String email, String providerName) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User nu a fost găsit!"));
 
@@ -136,19 +138,16 @@ public class UserService {
             mfaMethodRepository.save(newMethod);
         }
 
-        // Căutăm providerul (ex: EmailMfaProvider)
+        // Căutăm providerul (ex: EmailMfaProvider sau TotpMfaProvider)
         MfaProvider provider = mfaProviders.stream()
                 .filter(p -> p.getProviderName().equals(providerName))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Providerul " + providerName + " nu există!"));
 
-        // Trimitem email-ul cu codul
-        if (providerName.equals("EMAIL")) {
-            provider.sendChallenge(user);
-            return "Codul a fost trimis pe email-ul tău. Te rugăm să-l introduci pentru confirmare!";
-        }
-        
-        return null;
+        // AICI ESTE MAGIA:
+        // Nu mai avem nevoie de "if". Lăsăm provider-ul ales să își facă treaba lui specifică
+        // și să returneze DTO-ul direct către Controller/React!
+        return provider.generateChallenge(user);
     }
 
     // --- 4. CONFIRMARE MFA (Validarea codului și activarea metodei) ---
@@ -176,8 +175,14 @@ public class UserService {
         throw new RuntimeException("Codul introdus este incorect!");
     }
 
-    /// --- Trimite codul atunci când userul încearcă să se logheze ---
+    // --- Trimite codul atunci când userul încearcă să se logheze ---
     public void sendLoginChallenge(String email, String providerName) {
+        // Dacă metoda este TOTP, ne oprim aici! 
+        // Telefonul generează codul offline, deci serverul nu trebuie să trimită/genereze nimic la logare.
+        if (providerName.equals("TOTP")) {
+            return; 
+        }
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User nu a fost găsit!"));
 
@@ -186,7 +191,9 @@ public class UserService {
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Providerul " + providerName + " nu există!"));
 
-        provider.sendChallenge(user);
+        // Apelăm noua metodă. În cazul EMAIL, va genera un cod nou și va trimite mail-ul.
+        // Ignorăm return-ul (DTO-ul) pentru că la login avem nevoie doar ca acțiunea să se întâmple în background.
+        provider.generateChallenge(user);
     }
 
     // --- 5. LOGIN PASUL 2 (Verificarea codului propriu-zis la logare) ---

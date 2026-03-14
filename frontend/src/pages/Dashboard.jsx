@@ -53,17 +53,31 @@ function Dashboard() {
     }
   };
 
-  // --- Funcțiile pentru MFA (Același cod ca înainte) ---
   const handleSetupMfa = async (providerName) => {
     setError('');
-    setMessage('Se trimite codul pe email... Te rugăm să aștepți.');
+    setMessage('Se procesează... Te rugăm să aștepți.');
+    
+    // NOU: Asigură-te că ai și o stare pentru setQrCodeImage sus în componentă dacă nu o ai deja
+    // const [qrCodeImage, setQrCodeImage] = useState(''); 
+    if (typeof setQrCodeImage === 'function') setQrCodeImage(''); 
+
     try {
       const response = await axios.post(`/api/auth/mfa/setup?email=${loggedInEmail}&provider=${providerName}`);
-      setMessage(response.data.message);
+      
+      // Aici e secretul: response.data.message este ACUM obiectul nostru DTO!
+      const challengeData = response.data.message; 
+
+      if (challengeData.type === 'QR') {
+        if (typeof setQrCodeImage === 'function') setQrCodeImage(challengeData.qrCodeData); // Salvăm imaginea
+        setMessage(challengeData.message); // Salvăm DOAR textul ("Scanează codul...")
+      } else {
+        setMessage(challengeData.message); // Salvăm DOAR textul ("Codul a fost trimis...")
+      }
+
       setActiveProvider(providerName);
       setShowPopup(true);
     } catch (err) {
-      setError(err.response?.data?.error || 'Eroare la trimiterea codului.');
+      setError(err.response?.data?.error || 'Eroare la procesare.');
       setMessage('');
     }
   };

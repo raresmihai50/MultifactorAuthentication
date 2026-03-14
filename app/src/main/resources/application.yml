@@ -17,8 +17,8 @@ spring:
             enable: true
   jpa:
     hibernate:
-      #ddl-auto: update # Creează/actualizează automat tabelele în baza de date
-      ddl-auto: create-drop # Creează tabelele la pornire și le șterge la oprire (util pentru dezvoltare)
+      ddl-auto: update # Creează/actualizează automat tabelele în baza de date
+      #ddl-auto: create-drop # Creează tabelele la pornire și le șterge la oprire (util pentru dezvoltare)
     show-sql: true # Îți va arăta în terminal ce query-uri SQL se execută
     properties:
       hibernate:
