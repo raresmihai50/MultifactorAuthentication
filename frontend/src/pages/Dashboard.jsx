@@ -12,6 +12,8 @@ function Dashboard() {
   const [isEditing, setIsEditing] = useState(false);
   const [username, setUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
   const [showPopup, setShowPopup] = useState(false);
   const [mfaCode, setMfaCode] = useState('');
@@ -37,15 +39,26 @@ function Dashboard() {
     setError('');
     setMessage('');
     
+    // NOU: Validare în frontend - verificăm dacă parolele noi coincid
+    if (newPassword && newPassword !== confirmNewPassword) {
+      setError('Parolele noi nu coincid! Te rugăm să verifici.');
+      return;
+    }
+    
     try {
       const response = await axios.post('/api/auth/update', {
         email: loggedInEmail,
+        currentPassword: currentPassword, // Trimitem parola veche la verificare
         newUsername: username,
         newPassword: newPassword
       });
       setMessage(response.data.message);
       setIsEditing(false);
+      
+      // Curățăm TOATE parolele din memorie după update
+      setCurrentPassword('');
       setNewPassword('');
+      setConfirmNewPassword('');
     } catch (err) {
       setError(err.response?.data?.error || 'Eroare la actualizare profil.');
     }
@@ -105,25 +118,61 @@ function Dashboard() {
 
       {isEditing ? (
         <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          
           <div className="form-group">
             <label>Email (Nu poate fi modificat)</label>
             <input type="email" value={loggedInEmail} disabled style={{ backgroundColor: '#f0f0f0', color: '#888' }} />
           </div>
+          
           <div className="form-group">
             <label>Username</label>
             <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required />
           </div>
+
+          <hr style={{ border: '0.5px solid #eee' }} />
+
+          {/* NOU: Câmpul pentru parola curentă */}
           <div className="form-group">
-            <label>Parolă nouă (lasă gol pentru a o păstra pe cea veche)</label>
-            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="*******" />
+            <label style={{ color: '#dc3545', fontWeight: 'bold' }}>Parola curentă (Obligatorie pentru a salva)*</label>
+            <input 
+              type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} 
+              placeholder="Introdu parola ta actuală" required 
+            />
           </div>
+
+          <div className="form-group">
+            <label>Parolă nouă (Opțional)</label>
+            <input 
+              type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} 
+              placeholder="Lasă gol pentru a o păstra pe cea veche" 
+            />
+          </div>
+          
+          {/* NOU: Apare DOAR dacă utilizatorul vrea să schimbe parola */}
+          {newPassword && (
+            <div className="form-group">
+              <label>Confirmă parola nouă*</label>
+              <input 
+                type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} 
+                placeholder="Rescrie parola nouă" required 
+              />
+            </div>
+          )}
           
           <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
             <button type="submit" className="btn-primary" style={{ flex: 1 }}>💾 Salvează</button>
-            <button type="button" onClick={() => setIsEditing(false)} className="btn-secondary">Anulează</button>
+            <button type="button" onClick={() => { 
+                setIsEditing(false); 
+                setCurrentPassword(''); 
+                setNewPassword(''); 
+                setConfirmNewPassword(''); 
+                setError('');
+              }} className="btn-secondary">
+              Anulează
+            </button>
           </div>
         </form>
-      ) : (
+      ): (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           
           <button onClick={() => setIsEditing(true)} className="btn-secondary">

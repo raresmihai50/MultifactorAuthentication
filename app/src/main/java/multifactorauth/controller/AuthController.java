@@ -31,19 +31,14 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         try {
-            // Pasăm datele primite din React către Service-ul nostru
+            // NOU: Trimitem doar cele 3 câmpuri
             userService.registerUser(
                 request.getUsername(),
-                request.getEmail(),
-                request.getPassword(),
-                request.getSelectedMfas()
+                request.getEmail(), 
+                request.getPassword()
             );
-            
-            // Dacă merge bine, trimitem înapoi un JSON de succes
             return ResponseEntity.ok(Map.of("message", "Cont creat cu succes!"));
-            
         } catch (RuntimeException e) {
-            // Dacă dă eroare (ex: email deja folosit), trimitem eroarea la React
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
@@ -122,11 +117,16 @@ public class AuthController {
         }
     }
 
-    // NOU: Salvează modificările
     @PostMapping("/update")
     public ResponseEntity<?> updateProfile(@RequestBody UpdateRequest request) {
         try {
-            userService.updateUser(request.getEmail(), request.getNewUsername(), request.getNewPassword());
+            // Trimitem și parola curentă extrasă din Request
+            userService.updateUser(
+                request.getEmail(), 
+                request.getCurrentPassword(), 
+                request.getNewUsername(), 
+                request.getNewPassword()
+            );
             return ResponseEntity.ok(Map.of("message", "Profil actualizat cu succes!"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

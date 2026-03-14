@@ -36,7 +36,7 @@ public class UserService {
     }
 
     // --- 1. ÎNREGISTRAREA ---
-    public User registerUser(String username, String email, String rawPassword, List<String> selectedMfas) {
+    public User registerUser(String username, String email, String rawPassword) {
         if (userRepository.findByUsername(username).isPresent()) {
             throw new RuntimeException("Eroare: Acest username este deja folosit!");
         }
@@ -50,18 +50,8 @@ public class UserService {
         // Creăm userul
         User newUser = new User(username, email, encodedPassword);
         User savedUser = userRepository.save(newUser);
-        
-        // Dacă a bifat metode MFA în React, le salvăm în baza de date
-        if (selectedMfas != null && !selectedMfas.isEmpty()) {
-            for (String mfaName : selectedMfas) {
-                // Le setăm inițial cu isEnabled = false, secretKey = null
-                UserMfaMethod method = new UserMfaMethod(savedUser, mfaName, null);
-                method.setEnabled(false); // Vor deveni true doar după ce le configurează!
-                mfaMethodRepository.save(method);
-            }
-        }
 
-        System.out.println("User înregistrat cu succes: " + username + " cu metodele: " + selectedMfas);
+        System.out.println("User înregistrat cu succes: " + username);
         return savedUser;
     }
 
@@ -103,20 +93,25 @@ public class UserService {
     }
 
     // --- NOU: Actualizează profilul ---
-    public void updateUser(String email, String newUsername, String newPassword) {
+    // Adăugăm 'currentPassword' ca parametru
+    public void updateUser(String email, String currentPassword, String newUsername, String newPassword) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User nu a fost găsit!"));
 
-        // Verificăm dacă a introdus un username nou (diferit de cel vechi)
+        // 1. EXTRA SECURITATE: Verificăm dacă parola curentă introdusă este corectă!
+        if (currentPassword == null || !passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new RuntimeException("Eroare: Parola curentă introdusă este incorectă!");
+        }
+
+        // 2. Verificăm dacă a introdus un username nou
         if (newUsername != null && !newUsername.trim().isEmpty() && !newUsername.equals(user.getUsername())) {
-            // Verificăm să nu fie luat de altcineva
             if (userRepository.findByUsername(newUsername).isPresent()) {
                 throw new RuntimeException("Eroare: Acest username este deja folosit!");
             }
             user.setUsername(newUsername);
         }
 
-        // Verificăm dacă a introdus o parolă nouă
+        // 3. Verificăm dacă a introdus o parolă nouă
         if (newPassword != null && !newPassword.trim().isEmpty()) {
             user.setPassword(passwordEncoder.encode(newPassword));
         }
@@ -124,7 +119,6 @@ public class UserService {
         userRepository.save(user); // Salvăm modificările
     }
 
-    // --- 3. CONFIGURARE MFA (Trimiterea codului inițial) ---
     // --- 3. CONFIGURARE MFA (Trimiterea/Generarea codului inițial) ---
     public MfaChallengeResponse setupMfaMethod(String email, String providerName) {
         User user = userRepository.findByEmail(email)

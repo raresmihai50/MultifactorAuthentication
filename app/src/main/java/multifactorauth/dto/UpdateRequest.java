@@ -1,13 +1,17 @@
 package multifactorauth.dto;
 
 public class UpdateRequest {
-    private String email; // Folosim email-ul ca să știm pe cine modificăm
+    private String email;
+    private String currentPassword; // NOU: Parola actuală
     private String newUsername;
     private String newPassword;
 
     // Getters și Setters
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public String getCurrentPassword() { return currentPassword; }
+    public void setCurrentPassword(String currentPassword) { this.currentPassword = currentPassword; }
 
     public String getNewUsername() { return newUsername; }
     public void setNewUsername(String newUsername) { this.newUsername = newUsername; }
