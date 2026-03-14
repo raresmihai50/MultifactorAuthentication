@@ -9,6 +9,11 @@ function Dashboard() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   
+  // NOU: Stări pentru Editare Profil
+  const [isEditing, setIsEditing] = useState(false);
+  const [username, setUsername] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+
   // Stări pentru Popup-ul de validare MFA
   const [showPopup, setShowPopup] = useState(false);
   const [mfaCode, setMfaCode] = useState('');
@@ -16,38 +21,60 @@ function Dashboard() {
 
   // Dacă nu ești logat, te dă afară la login
   useEffect(() => {
-    if (!loggedInEmail) navigate('/login');
+    if (!loggedInEmail) {
+      navigate('/login');
+      return;
+    }
+    
+    // Luăm username-ul din backend ca să îl precompletăm în formular
+    axios.get(`/api/auth/me?email=${loggedInEmail}`)
+      .then(res => setUsername(res.data.username))
+      .catch(err => console.log(err));
+      
   }, [loggedInEmail, navigate]);
 
-  // --- ACȚIUNEA 1: Cerem backend-ului să trimită codul ---
+  // --- Funcția de Update Profil ---
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    
+    try {
+      const response = await axios.post('/api/auth/update', {
+        email: loggedInEmail, // Email-ul rămâne același
+        newUsername: username,
+        newPassword: newPassword
+      });
+      setMessage(response.data.message);
+      setIsEditing(false); // Închidem formularul
+      setNewPassword(''); // Ștergem parola tastată ca să nu rămână pe ecran
+    } catch (err) {
+      setError(err.response?.data?.error || 'Eroare la actualizare profil.');
+    }
+  };
+
+  // --- Funcțiile pentru MFA (Același cod ca înainte) ---
   const handleSetupMfa = async (providerName) => {
     setError('');
     setMessage('Se trimite codul pe email... Te rugăm să aștepți.');
-    
     try {
-      // Apelăm endpoint-ul de setup creat de tine în AuthController
       const response = await axios.post(`/api/auth/mfa/setup?email=${loggedInEmail}&provider=${providerName}`);
-      
-      setMessage(response.data.message); // Afișăm "Codul a fost trimis..."
+      setMessage(response.data.message);
       setActiveProvider(providerName);
-      setShowPopup(true); // Deschidem popup-ul
+      setShowPopup(true);
     } catch (err) {
       setError(err.response?.data?.error || 'Eroare la trimiterea codului.');
       setMessage('');
     }
   };
 
-  // --- ACȚIUNEA 2: Trimitem codul completat de user spre validare ---
   const handleConfirmMfa = async () => {
     setError('');
     try {
       const response = await axios.post(`/api/auth/mfa/confirm?email=${loggedInEmail}&provider=${activeProvider}&code=${mfaCode}`);
-      
-      // Dacă e succes, închidem popup-ul și curățăm input-ul
-      setMessage(response.data.message); // Afișăm "MFA activat cu succes!"
+      setMessage(response.data.message);
       setShowPopup(false);
       setMfaCode('');
-      
     } catch (err) {
       setError(err.response?.data?.error || 'Codul introdus este invalid!');
     }
@@ -65,27 +92,54 @@ function Dashboard() {
         Logat ca: <strong>{loggedInEmail}</strong>
       </p>
 
-      {/* Mesaje de stare */}
       {message && <div style={{ color: 'green', textAlign: 'center', marginBottom: '15px', fontWeight: 'bold' }}>{message}</div>}
       {error && <div style={{ color: 'red', textAlign: 'center', marginBottom: '15px', fontWeight: 'bold' }}>{error}</div>}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        <p style={{ margin: 0, fontWeight: 'bold', color: '#333' }}>Metode de Securitate:</p>
-        
-        {/* Butonul care declanșează fluxul */}
-        <button 
-          onClick={() => handleSetupMfa('EMAIL')} 
-          className="btn-secondary" 
-          style={{ backgroundColor: '#e9f7ef', borderColor: '#28a745', color: '#28a745' }}>
-          ✉️ Configurează MFA prin Email
-        </button>
+      {/* Dacă suntem în modul EDITARE afișăm formularul, dacă nu, afișăm meniul normal */}
+      {isEditing ? (
+        <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <div className="form-group">
+            <label>Email (Nu poate fi modificat)</label>
+            <input type="email" value={loggedInEmail} disabled style={{ backgroundColor: '#f0f0f0', color: '#888' }} />
+          </div>
+          <div className="form-group">
+            <label>Username</label>
+            <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required />
+          </div>
+          <div className="form-group">
+            <label>Parolă nouă (lasă gol pentru a o păstra pe cea veche)</label>
+            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="*******" />
+          </div>
+          
+          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+            <button type="submit" className="btn-primary" style={{ flex: 1 }}>💾 Salvează</button>
+            <button type="button" onClick={() => setIsEditing(false)} className="btn-secondary">Anulează</button>
+          </div>
+        </form>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          
+          <button onClick={() => setIsEditing(true)} className="btn-secondary">
+            ✏️ Editează Profilul
+          </button>
+          
+          <hr style={{ width: '100%', border: '0.5px solid #eee' }} />
 
-        <button onClick={handleLogout} className="btn-primary" style={{ backgroundColor: '#dc3545', marginTop: '20px' }}>
-          🚪 Deconectare
-        </button>
-      </div>
+          <p style={{ margin: 0, fontWeight: 'bold', color: '#333' }}>Metode de Securitate:</p>
+          <button 
+            onClick={() => handleSetupMfa('EMAIL')} 
+            className="btn-secondary" 
+            style={{ backgroundColor: '#e9f7ef', borderColor: '#28a745', color: '#28a745' }}>
+            ✉️ Configurează MFA prin Email
+          </button>
 
-      {/* POP-UP PENTRU INTRODUCEREA CODULUI */}
+          <button onClick={handleLogout} className="btn-primary" style={{ backgroundColor: '#dc3545', marginTop: '20px' }}>
+            🚪 Deconectare
+          </button>
+        </div>
+      )}
+
+      {/* POP-UP PENTRU INTRODUCEREA CODULUI MFA (A rămas la fel) */}
       {showPopup && (
         <div style={{
           position: 'absolute', top: '10%', left: '5%', right: '5%', 
@@ -98,14 +152,9 @@ function Dashboard() {
           </p>
           
           <input 
-            type="text" 
-            value={mfaCode} 
-            onChange={(e) => setMfaCode(e.target.value)} 
+            type="text" value={mfaCode} onChange={(e) => setMfaCode(e.target.value)} 
             placeholder="Ex: 123456" 
-            style={{ 
-              width: '90%', marginBottom: '15px', letterSpacing: '5px', 
-              textAlign: 'center', fontSize: '1.5rem', fontWeight: 'bold' 
-            }}
+            style={{ width: '90%', marginBottom: '15px', letterSpacing: '5px', textAlign: 'center', fontSize: '1.5rem', fontWeight: 'bold' }}
           />
           
           <div style={{ display: 'flex', gap: '10px' }}>

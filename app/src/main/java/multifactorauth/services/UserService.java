@@ -94,6 +94,35 @@ public class UserService {
             return new LoginResponse(true, availableMfaMethods, "MFA_REQUIRED"); 
         }
     }
+
+    // --- NOU: Obține detaliile utilizatorului curent ---
+    public User getUserDetails(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User nu a fost găsit!"));
+    }
+
+    // --- NOU: Actualizează profilul ---
+    public void updateUser(String email, String newUsername, String newPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User nu a fost găsit!"));
+
+        // Verificăm dacă a introdus un username nou (diferit de cel vechi)
+        if (newUsername != null && !newUsername.trim().isEmpty() && !newUsername.equals(user.getUsername())) {
+            // Verificăm să nu fie luat de altcineva
+            if (userRepository.findByUsername(newUsername).isPresent()) {
+                throw new RuntimeException("Eroare: Acest username este deja folosit!");
+            }
+            user.setUsername(newUsername);
+        }
+
+        // Verificăm dacă a introdus o parolă nouă
+        if (newPassword != null && !newPassword.trim().isEmpty()) {
+            user.setPassword(passwordEncoder.encode(newPassword));
+        }
+
+        userRepository.save(user); // Salvăm modificările
+    }
+
     // --- 3. CONFIGURARE MFA (Trimiterea codului inițial) ---
     public Object setupMfaMethod(String email, String providerName) {
         User user = userRepository.findByEmail(email)
