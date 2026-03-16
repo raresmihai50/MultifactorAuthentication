@@ -22,8 +22,8 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private String password;
 
-    // Aici e magia One-to-Many. 
-    // "cascade = CascadeType.ALL" înseamnă că dacă ștergi userul, se șterg automat și metodele lui MFA din baza de date.
+    // One-to-Many. 
+    // "cascade = CascadeType.ALL" dacă ștergi userul, se șterg automat și metodele lui MFA din baza de date.
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserMfaMethod> mfaMethods = new ArrayList<>();
 

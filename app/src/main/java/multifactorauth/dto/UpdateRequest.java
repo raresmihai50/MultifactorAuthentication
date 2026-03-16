@@ -2,7 +2,7 @@ package multifactorauth.dto;
 
 public class UpdateRequest {
     private String email;
-    private String currentPassword; // NOU: Parola actuală
+    private String currentPassword;
     private String newUsername;
     private String newPassword;
 

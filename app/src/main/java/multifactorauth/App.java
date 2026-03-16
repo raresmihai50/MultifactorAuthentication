@@ -3,7 +3,7 @@ package multifactorauth;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication // Această adnotare transformă aplicația într-un server web și activează conectarea la baza de date
+@SpringBootApplication
 public class App {
 
     public static void main(String[] args) {

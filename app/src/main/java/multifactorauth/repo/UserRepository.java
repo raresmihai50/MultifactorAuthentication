@@ -10,7 +10,6 @@ import multifactorauth.domain.User;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
     
-    // Spring Boot "citește" numele metodei și generează SQL-ul: SELECT * FROM users WHERE username = ?
     Optional<User> findByUsername(String username);
     
     Optional<User> findByEmail(String email);

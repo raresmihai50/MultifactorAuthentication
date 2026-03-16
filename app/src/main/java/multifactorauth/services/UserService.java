@@ -21,7 +21,7 @@ public class UserService {
     private final UserMfaMethodRepository mfaMethodRepository;
     private final PasswordEncoder passwordEncoder;
     
-    // Aici e magia Strategy Pattern: Spring ne va injecta automat TOATE clasele 
+    // Strategy Pattern: Spring ne va injecta automat TOATE clasele 
     // care implementează MfaProvider (și TotpMfaProvider, și EmailMfaProvider)
     private final List<MfaProvider> mfaProviders;
 
@@ -35,7 +35,7 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    // --- 1. ÎNREGISTRAREA ---
+    // --- ÎNREGISTRAREA ---
     public User registerUser(String username, String email, String rawPassword) {
         if (userRepository.findByUsername(username).isPresent()) {
             throw new RuntimeException("Eroare: Acest username este deja folosit!");
@@ -55,8 +55,8 @@ public class UserService {
         return savedUser;
     }
 
-    // --- 2. LOGIN PASUL 1 (Verificarea Parolei și a Metodelor MFA) ---
-    public LoginResponse loginStep1(String email, String rawPassword) { // Returnăm LoginResponse, nu Object
+    // --- LOGIN PASUL 1 (Verificarea Parolei și a Metodelor MFA) ---
+    public LoginResponse loginStep1(String email, String rawPassword) {
         
         // 1. Căutăm userul în baza de date
         User user = userRepository.findByEmail(email)
@@ -74,7 +74,7 @@ public class UserService {
                 .map(UserMfaMethod::getProviderName)
                 .collect(Collectors.toList());
 
-        // 4. Returnăm un răspuns CLAR și TIPIZAT
+        // 4. Returnăm un răspuns diferit în funcție de dacă are sau nu metode MFA activate
         if (availableMfaMethods.isEmpty()) {
             System.out.println("-> Login Step 1: Userul nu are MFA. Intră direct în cont!");
             // mfaRequired = false, methods = null, message = "LOGIN_SUCCESS"
@@ -86,14 +86,13 @@ public class UserService {
         }
     }
 
-    // --- NOU: Obține detaliile utilizatorului curent ---
+    // --- Obține detaliile utilizatorului curent ---
     public User getUserDetails(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User nu a fost găsit!"));
     }
 
-    // --- NOU: Actualizează profilul ---
-    // Adăugăm 'currentPassword' ca parametru
+    // --- Actualizează profilul ---
     public void updateUser(String email, String currentPassword, String newUsername, String newPassword) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User nu a fost găsit!"));
@@ -119,7 +118,7 @@ public class UserService {
         userRepository.save(user); // Salvăm modificările
     }
 
-    // --- 3. CONFIGURARE MFA (Trimiterea/Generarea codului inițial) ---
+    // --- CONFIGURARE MFA (Trimiterea/Generarea codului inițial) ---
     public MfaChallengeResponse setupMfaMethod(String email, String providerName) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User nu a fost găsit!"));
@@ -138,13 +137,12 @@ public class UserService {
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Providerul " + providerName + " nu există!"));
 
-        // AICI ESTE MAGIA:
-        // Nu mai avem nevoie de "if". Lăsăm provider-ul ales să își facă treaba lui specifică
+        // Nu mai este nevoie de "if". Lăsăm provider-ul ales să își facă treaba lui specifică
         // și să returneze DTO-ul direct către Controller/React!
         return provider.generateChallenge(user);
     }
 
-    // --- 4. CONFIRMARE MFA (Validarea codului și activarea metodei) ---
+    // --- CONFIRMARE MFA (Validarea codului și activarea metodei) ---
     public boolean confirmMfaSetup(String email, String providerName, String code) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User nu a fost găsit!"));
@@ -190,7 +188,7 @@ public class UserService {
         provider.generateChallenge(user);
     }
 
-    // --- 5. LOGIN PASUL 2 (Verificarea codului propriu-zis la logare) ---
+    // --- LOGIN PASUL 2 (Verificarea codului propriu-zis la logare) ---
     public String loginStep2(String email, String providerName, String code) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User nu a fost găsit!"));

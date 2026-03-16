@@ -16,7 +16,7 @@ public class UserMfaMethod extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // Numele metodei: "TOTP", "EMAIL", "SMS", etc.
+    // Numele metodei: "TOTP", "EMAIL", etc. (daca va fi cazul, putem adăuga și alte tipuri de metode MFA în viitor)
     @Column(name = "provider_name", nullable = false)
     private String providerName; 
 

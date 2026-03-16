@@ -3,7 +3,7 @@ package multifactorauth.dto;
 public class MfaChallengeResponse {
     private String type;       // Va fi "TEXT" sau "QR"
     private String message;    // Mesajul text pentru utilizator
-    private String qrCodeData; // Imaginea Base64 (dacă e cazul)
+    private String qrCodeData; // Imaginea Base64
 
     public MfaChallengeResponse(String type, String message, String qrCodeData) {
         this.type = type;

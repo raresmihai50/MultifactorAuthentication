@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 
 import multifactorauth.domain.User;
 import multifactorauth.domain.UserMfaMethod;
-import multifactorauth.dto.MfaChallengeResponse; // NOU: Am importat DTO-ul
+import multifactorauth.dto.MfaChallengeResponse;
 import multifactorauth.repo.UserMfaMethodRepository;
 
 @Service
@@ -26,7 +26,6 @@ public class EmailMfaProvider implements MfaProvider {
         return "EMAIL";
     }
 
-    // NOU: Am schimbat din "void sendChallenge" în "MfaChallengeResponse generateChallenge"
     @Override
     public MfaChallengeResponse generateChallenge(User user) {
         // 1. Generăm codul de 6 cifre
@@ -53,7 +52,7 @@ public class EmailMfaProvider implements MfaProvider {
         mailSender.send(message);
         System.out.println("Email-ul a fost trimis cu succes!");
 
-        // 5. NOU: Returnăm DTO-ul ca să știe React-ul ce să afișeze
+        // 5. Returnăm DTO-ul ca să știe React-ul ce să afișeze
         return new MfaChallengeResponse(
             "TEXT", 
             "Codul a fost trimis pe email-ul tău. Te rugăm să-l introduci pentru confirmare!", 

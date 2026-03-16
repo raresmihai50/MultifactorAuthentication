@@ -9,7 +9,7 @@ import dev.samstevens.totp.code.HashingAlgorithm;
 import dev.samstevens.totp.exceptions.QrGenerationException;
 import dev.samstevens.totp.qr.QrData;
 import dev.samstevens.totp.qr.QrGenerator;
-import dev.samstevens.totp.qr.ZxingPngQrGenerator; // Importăm DTO-ul!
+import dev.samstevens.totp.qr.ZxingPngQrGenerator;
 import dev.samstevens.totp.secret.DefaultSecretGenerator;
 import dev.samstevens.totp.time.SystemTimeProvider;
 import dev.samstevens.totp.util.Utils;
@@ -32,7 +32,7 @@ public class TotpMfaProvider implements MfaProvider {
         return "TOTP";
     }
 
-    // AICI E MODIFICAREA: Folosim MfaChallengeResponse
+    // Se foloseste MfaChallengeResponse
     @Override
     public MfaChallengeResponse generateChallenge(User user) {
         // 1. Generăm un Secret Key unic lung pentru acest user
@@ -48,7 +48,7 @@ public class TotpMfaProvider implements MfaProvider {
         QrData data = new QrData.Builder()
                 .label(user.getEmail()) // Va apărea în aplicația de pe telefon
                 .secret(secret)
-                .issuer("MFA Project") // Numele aplicației tale
+                .issuer("MFA Project") // Numele aplicației
                 .algorithm(HashingAlgorithm.SHA1) // Standardul Google Auth
                 .digits(6)
                 .period(30)

@@ -31,7 +31,7 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         try {
-            // NOU: Trimitem doar cele 3 câmpuri
+            // Trimitem cele 3 câmpuri
             userService.registerUser(
                 request.getUsername(),
                 request.getEmail(), 
@@ -103,7 +103,7 @@ public class AuthController {
         }
     }
 
-    // NOU: Returnează detaliile userului curent ca să le afișăm în Dashboard
+    // Returnează detaliile userului curent ca să le afișăm în Dashboard
     @GetMapping("/me")
     public ResponseEntity<?> getUserDetails(@RequestParam String email) {
         try {
