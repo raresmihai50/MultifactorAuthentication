@@ -13,12 +13,12 @@ function Login() {
   const [activeProvider, setActiveProvider] = useState('');
   const [mfaError, setMfaError] = useState('');
 
-  // NOU: O "coadă" cu metodele MFA care mai trebuie trecute
+  // O "coadă" cu metodele MFA care mai trebuie trecute
   const [pendingMfaQueue, setPendingMfaQueue] = useState([]);
 
   const navigate = useNavigate();
 
-  // NOU: Funcție separată care declanșează Pop-up-ul pentru providerul cerut
+  // Funcție separată care declanșează Pop-up-ul pentru providerul cerut
   const triggerNextMfa = async (provider, userEmail) => {
     setActiveProvider(provider);
     setMfaCode(''); // Curățăm codul vechi
@@ -51,7 +51,7 @@ function Login() {
       if (response.data.mfaRequired) {
         const methods = response.data.availableMfaMethods;
         
-        // MAGIA AICI: Sortăm metodele ca 'TOTP' să fie mereu primul, apoi restul!
+        // Sortăm metodele ca 'TOTP' să fie mereu primul, apoi restul!
         methods.sort((a, b) => {
           if (a === 'TOTP') return -1;
           if (b === 'TOTP') return 1;

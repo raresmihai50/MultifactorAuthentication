@@ -19,7 +19,7 @@ function Dashboard() {
   const [mfaCode, setMfaCode] = useState('');
   const [activeProvider, setActiveProvider] = useState('');
   
-  // NOU: Am adăugat starea pentru a salva imaginea QR de la Backend
+  // Am adăugat starea pentru a salva imaginea QR de la Backend
   const [qrCodeImage, setQrCodeImage] = useState('');
 
   useEffect(() => {
@@ -39,7 +39,7 @@ function Dashboard() {
     setError('');
     setMessage('');
     
-    // NOU: Validare în frontend - verificăm dacă parolele noi coincid
+    // Validare în frontend - verificăm dacă parolele noi coincid
     if (newPassword && newPassword !== confirmNewPassword) {
       setError('Parolele noi nu coincid! Te rugăm să verifici.');
       return;
@@ -131,7 +131,7 @@ function Dashboard() {
 
           <hr style={{ border: '0.5px solid #eee' }} />
 
-          {/* NOU: Câmpul pentru parola curentă */}
+          {/* Câmpul pentru parola curentă */}
           <div className="form-group">
             <label style={{ color: '#dc3545', fontWeight: 'bold' }}>Parola curentă (Obligatorie pentru a salva)*</label>
             <input 
@@ -148,7 +148,7 @@ function Dashboard() {
             />
           </div>
           
-          {/* NOU: Apare DOAR dacă utilizatorul vrea să schimbe parola */}
+          {/* Apare DOAR dacă utilizatorul vrea să schimbe parola */}
           {newPassword && (
             <div className="form-group">
               <label>Confirmă parola nouă*</label>
@@ -212,7 +212,7 @@ function Dashboard() {
         }}>
           <h3 style={{ marginTop: 0, color: '#007bff' }}>Verificare Cod</h3>
           
-          {/* NOU: Textul se schimbă în funcție de metoda aleasă */}
+          {/* Textul se schimbă în funcție de metoda aleasă */}
           <p style={{ fontSize: '0.9rem', color: '#555' }}>
             {activeProvider === 'EMAIL' 
               ? <>Am trimis un cod de 6 cifre la <b>{loggedInEmail}</b>. Te rugăm să-l introduci mai jos:</>
@@ -220,7 +220,7 @@ function Dashboard() {
             }
           </p>
           
-          {/* NOU: Aici este magia unde afișăm imaginea cu Codul QR dacă există! */}
+          {/* Aici afișăm imaginea cu Codul QR dacă există! */}
           {qrCodeImage && (
             <div style={{ textAlign: 'center', margin: '15px 0' }}>
               <img 
